@@ -84,6 +84,21 @@ header h1 {
 }
 .btn:hover { background: var(--surface-hover); }
 
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.view-toggle .btn {
+  border: none;
+  border-radius: 0;
+  padding: 4px 14px;
+  font-size: 11px;
+}
+.view-toggle .btn:not(:last-child) { border-right: 1px solid var(--border); }
+.view-toggle .btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 .search-input {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -114,6 +129,8 @@ header h1 {
   overflow-x: auto;
   min-height: 300px;
 }
+.tree-container.graph { padding: 24px; position: relative; }
+.tree-container.hidden { display: none; }
 
 .tree-node { user-select: none; }
 
@@ -267,6 +284,133 @@ header h1 {
   color: var(--text-muted);
 }
 
+/* Graph view */
+.graph-canvas {
+  position: relative;
+  min-width: 100%;
+}
+.graph-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.graph-svg line {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.graph-svg line.edge-epic-feature { stroke: rgba(204,93,232,0.25); }
+.graph-svg line.edge-epic-leaf { stroke: rgba(204,93,232,0.18); }
+.graph-svg line.edge-feature-leaf { stroke: rgba(51,154,240,0.20); }
+
+.graph-columns {
+  display: flex;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+  min-width: max-content;
+}
+
+.graph-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px;
+  min-width: 260px;
+}
+.graph-col-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.graph-node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.10s, border-color 0.10s;
+  position: relative;
+  z-index: 1;
+  min-width: 240px;
+}
+.graph-node:hover { background: var(--surface-hover); border-color: var(--accent); }
+.graph-node.epic   { border-left: 3px solid var(--epic); }
+.graph-node.feature { border-left: 3px solid var(--feature); }
+.graph-node.leaf   { border-left: 3px solid var(--userstory); }
+.graph-node.leaf.bug-node { border-left-color: var(--bug); }
+
+.graph-node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.graph-node-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.graph-node-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+.graph-node-footer .state-badge { font-size: 9px; padding: 1px 6px; }
+.graph-node-footer .graph-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 10px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.10s;
+}
+.graph-node:hover .graph-link { opacity: 1; }
+.graph-node-footer .graph-link:hover { text-decoration: underline; }
+
+.connector-label {
+  position: absolute;
+  font-size: 9px;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.legend {
+  padding: 2px 24px 0;
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  align-items: center;
+}
+.legend span { display: flex; align-items: center; gap: 4px; }
+.legend .swatch {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.legend .swatch.epic { background: var(--epic); }
+.legend .swatch.feature { background: var(--feature); }
+.legend .swatch.story { background: var(--userstory); }
+.legend .swatch.bug { background: var(--bug); }
+
 @media (max-width: 768px) {
   header { padding: 12px 16px; }
   .toolbar { padding: 10px 16px; }
@@ -274,6 +418,8 @@ header h1 {
   .assigned-to { display: none; }
   .child-count { display: none; }
   .search-input { min-width: 150px; }
+  .graph-col { min-width: 200px; }
+  .graph-node { min-width: 180px; }
 }
 </style>
 </head>
@@ -285,9 +431,13 @@ header h1 {
 </header>
 
 <div class="toolbar" id="toolbar" style="display:none">
-  <button class="btn" onclick="expandAll()">Expand All</button>
-  <button class="btn" onclick="collapseAll()">Collapse All</button>
-  <input type="text" class="search-input" id="searchInput" placeholder="Filter by title..." oninput="renderTree()">
+  <div class="view-toggle" id="viewToggle">
+    <button class="btn active" data-view="tree">Tree</button>
+    <button class="btn" data-view="graph">Graph</button>
+  </div>
+  <button class="btn tree-only" onclick="expandAll()">Expand All</button>
+  <button class="btn tree-only" onclick="collapseAll()">Collapse All</button>
+  <input type="text" class="search-input" id="searchInput" placeholder="Filter by title..." oninput="onSearch()">
   <span style="flex:1"></span>
   <label class="btn" title="Load epic_tree.json from exports folder">
     <input type="file" id="fileInput" accept=".json" onchange="loadFromFile(event)" hidden>
@@ -300,6 +450,13 @@ header h1 {
   <span>Features: <strong class="count" id="featureCount">0</strong></span>
   <span>User Stories: <strong class="count" id="storyCount">0</strong></span>
   <span>Bugs: <strong class="count" id="bugCount">0</strong></span>
+</div>
+
+<div class="legend" id="legend" style="display:none">
+  <span><span class="swatch epic"></span> Epic</span>
+  <span><span class="swatch feature"></span> Feature</span>
+  <span><span class="swatch story"></span> User Story</span>
+  <span><span class="swatch bug"></span> Bug</span>
 </div>
 
 <div class="tree-container" id="treeContainer">
@@ -318,13 +475,13 @@ window.EPIC_TREE_DATA = [];
 
 (function() {
   var data = window.EPIC_TREE_DATA;
+  var currentView = 'tree';
 
   if (Array.isArray(data) && data.length > 0) {
     init(data);
     return;
   }
 
-  // Try to load exports/epic_tree.json
   fetch('exports/epic_tree.json')
     .then(function(r) { if (!r.ok) throw new Error('not found'); return r.json(); })
     .then(function(tree) {
@@ -333,7 +490,6 @@ window.EPIC_TREE_DATA = [];
       }
     })
     .catch(function() {
-      // Show file loader UI (already visible)
     });
 
   function init(treeData) {
@@ -341,11 +497,45 @@ window.EPIC_TREE_DATA = [];
     window.EPIC_TREE_DATA = treeData;
     document.getElementById('toolbar').style.display = 'flex';
     document.getElementById('summary').style.display = 'flex';
+    document.getElementById('legend').style.display = 'flex';
+    setupViewToggle();
     updateSummary();
-    renderTree();
+    renderCurrentView();
   }
 
-  var LINK_HIERARCHY_FORWARD = 'System.LinkTypes.Hierarchy-Forward';
+  function setupViewToggle() {
+    var buttons = document.querySelectorAll('#viewToggle .btn');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function(e) {
+        var view = this.getAttribute('data-view');
+        if (view === currentView) return;
+        currentView = view;
+        var all = document.querySelectorAll('#viewToggle .btn');
+        for (var j = 0; j < all.length; j++) {
+          all[j].classList.toggle('active', all[j].getAttribute('data-view') === view);
+        }
+        var treeOnly = document.querySelectorAll('.tree-only');
+        for (var k = 0; k < treeOnly.length; k++) {
+          treeOnly[k].style.display = view === 'tree' ? '' : 'none';
+        }
+        renderCurrentView();
+      });
+    }
+  }
+
+  function onSearch() {
+    renderCurrentView();
+  }
+
+  function renderCurrentView() {
+    if (currentView === 'graph') {
+      renderGraph();
+    } else {
+      renderTree();
+    }
+  }
+
+  // ── Summary ──────────────────────────────────────────────
 
   function updateSummary() {
     var epics = 0, features = 0, stories = 0, bugs = 0;
@@ -364,13 +554,15 @@ window.EPIC_TREE_DATA = [];
     document.getElementById('bugCount').textContent = bugs;
   }
 
+  // ── Tree view ────────────────────────────────────────────
+
   function renderTree() {
     var container = document.getElementById('treeContainer');
-    var existing = container.querySelectorAll('.tree-node');
-    for (var i = 0; i < existing.length; i++) existing[i].remove();
+    container.className = 'tree-container';
+    container.innerHTML = '';
     document.getElementById('emptyState').style.display = 'none';
 
-    var search = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+    var search = getSearch();
 
     function nodeMatches(node) {
       if (!search) return true;
@@ -389,9 +581,12 @@ window.EPIC_TREE_DATA = [];
 
     if (visibleCount === 0) {
       var msg = search ? 'No items match your filter.' : 'No data to display.';
-      var el = document.getElementById('emptyState');
-      el.querySelector('p').textContent = msg;
-      el.style.display = '';
+      var emptyEl = document.createElement('div');
+      emptyEl.id = 'emptyState';
+      emptyEl.className = 'empty-state';
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = '<p>' + escapeHtml(msg) + '</p>';
+      container.appendChild(emptyEl);
     }
   }
 
@@ -521,6 +716,266 @@ window.EPIC_TREE_DATA = [];
     for (var j = 0; j < toggles.length; j++) toggles[j].classList.remove('expanded');
   };
 
+  // ── Graph view ───────────────────────────────────────────
+
+  var COL_GAP = 60;
+  var NODE_HEIGHT = 58;
+  var NODE_GAP = 10;
+  var PAD_TOP = 8;
+  var PAD_LEFT = 16;
+
+  function renderGraph() {
+    var search = getSearch();
+    var container = document.getElementById('treeContainer');
+    container.className = 'tree-container graph';
+    container.innerHTML = '';
+
+    var allNodes = [];
+    var edges = [];
+    var idToNode = {};
+
+    // Flatten tree with level info, filter by search
+    function flatten(nodes, parentId, level, parentType) {
+      nodes.forEach(function(node) {
+        var typeKey = node.type.toLowerCase().replace(/\s+/g, '-');
+        var matches = nodeMatchesSearch(node, search);
+        var childMatches = (node.children || []).some(function(c) { return nodeMatchesSearch(c, search); });
+
+        if (!matches && !childMatches) return;
+
+        if (matches || (parentId && childMatches)) {
+          var gn = {
+            id: node.id,
+            title: node.title,
+            type: node.type,
+            typeKey: typeKey,
+            state: node.state,
+            assignedTo: node.assignedTo || '',
+            url: node.url || '',
+            level: level,
+            children: node.children || [],
+            y: 0,
+            height: NODE_HEIGHT
+          };
+          allNodes.push(gn);
+          idToNode[node.id] = gn;
+          if (parentId && idToNode[parentId]) {
+            edges.push({ from: parentId, to: node.id, fromType: parentType, toType: typeKey });
+          }
+        }
+
+        if (node.children && node.children.length > 0) {
+          flatten(node.children, matches ? node.id : parentId, level + 1, typeKey);
+        }
+      });
+    }
+
+    flatten(window.EPIC_TREE_DATA || [], null, 0, '');
+
+    if (allNodes.length === 0) {
+      var msg = search ? 'No items match your filter.' : 'No data to display.';
+      var emptyEl = document.createElement('div');
+      emptyEl.id = 'emptyState';
+      emptyEl.className = 'empty-state';
+      emptyEl.style.display = '';
+      emptyEl.innerHTML = '<p>' + escapeHtml(msg) + '</p>';
+      container.appendChild(emptyEl);
+      return;
+    }
+
+    // Group nodes by level
+    var maxLevel = 0;
+    allNodes.forEach(function(n) { if (n.level > maxLevel) maxLevel = n.level; });
+
+    var columns = [];
+    for (var i = 0; i <= maxLevel; i++) columns.push([]);
+    allNodes.forEach(function(n) { columns[n.level].push(n); });
+
+    // Assign Y positions
+    var maxColHeight = 0;
+    columns.forEach(function(col) {
+      var y = PAD_TOP;
+      col.forEach(function(node) {
+        node.y = y;
+        y += node.height + NODE_GAP;
+      });
+      if (y > maxColHeight) maxColHeight = y;
+    });
+
+    // Calculate total width & column X offsets
+    var colWidth = 270;
+    var totalWidth = columns.length * colWidth + PAD_LEFT * 2;
+
+    // Build canvas
+    var canvas = document.createElement('div');
+    canvas.className = 'graph-canvas';
+    canvas.style.width = totalWidth + 'px';
+    canvas.style.height = (maxColHeight + 20) + 'px';
+
+    // SVG layer for edges
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'graph-svg');
+    svg.setAttribute('width', totalWidth);
+    svg.setAttribute('height', maxColHeight + 20);
+
+    var EDGE_CLASS = {
+      'epic_feature': 'edge-epic-feature',
+      'epic_user-story': 'edge-epic-leaf',
+      'epic_bug': 'edge-epic-leaf',
+      'feature_user-story': 'edge-feature-leaf',
+      'feature_bug': 'edge-feature-leaf'
+    };
+
+    edges.forEach(function(edge) {
+      var from = idToNode[edge.from];
+      var to = idToNode[edge.to];
+      if (!from || !to) return;
+
+      var x1 = PAD_LEFT + from.level * colWidth + colWidth - 10;
+      var y1 = from.y + from.height / 2;
+      var x2 = PAD_LEFT + to.level * colWidth - 10;
+      var y2 = to.y + to.height / 2;
+
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      var ek = edge.fromType.replace(/\s+/g, '-').toLowerCase() + '_' + edge.toType;
+      line.setAttribute('class', EDGE_CLASS[ek] || '');
+      svg.appendChild(line);
+
+      // Arrow marker on the right end
+      var arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      var angle = Math.atan2(y2 - y1, x2 - x1);
+      var ax = x2 - 6 * Math.cos(angle);
+      var ay = y2 - 6 * Math.sin(angle);
+      var size = 4;
+      var points = [
+        x2 + ',' + y2,
+        (ax - size * Math.sin(angle)) + ',' + (ay + size * Math.cos(angle)),
+        (ax + size * Math.sin(angle)) + ',' + (ay - size * Math.cos(angle))
+      ].join(' ');
+      arrow.setAttribute('points', points);
+      arrow.setAttribute('fill', 'var(--border)');
+      arrow.style.fill = '#4a4d55';
+      svg.appendChild(arrow);
+    });
+
+    canvas.appendChild(svg);
+
+    // Columns layer
+    var colsDiv = document.createElement('div');
+    colsDiv.className = 'graph-columns';
+
+    var colLabels = ['Epics', 'Features', 'Stories / Bugs'];
+    columns.forEach(function(col, levelIndex) {
+      var colDiv = document.createElement('div');
+      colDiv.className = 'graph-col';
+      colDiv.style.width = colWidth + 'px';
+      colDiv.style.paddingLeft = (levelIndex === 0 ? PAD_LEFT : 0) + 'px';
+
+      if (levelIndex < colLabels.length) {
+        var header = document.createElement('div');
+        header.className = 'graph-col-header';
+        header.textContent = colLabels[levelIndex];
+        if (levelIndex === columns.length - 1 && columns.length > colLabels.length) {
+          header.textContent = '...';
+        }
+        colDiv.appendChild(header);
+      }
+
+      col.forEach(function(node) {
+        var typeKey = node.typeKey;
+        var isBug = typeKey === 'bug';
+        var classes = 'graph-node ' + (typeKey === 'user-story' || isBug ? 'leaf' : typeKey);
+        if (isBug) classes += ' bug-node';
+
+        var nodeEl = document.createElement('div');
+        nodeEl.className = classes;
+        nodeEl.style.position = 'absolute';
+        nodeEl.style.left = (PAD_LEFT + levelIndex * colWidth) + 'px';
+        nodeEl.style.top = node.y + 'px';
+        nodeEl.style.width = (colWidth - (levelIndex === 0 ? PAD_LEFT + 8 : 8)) + 'px';
+
+        var typeLabels = { 'epic': 'E', 'feature': 'F', 'user-story': 'US', 'bug': 'B' };
+
+        var headerDiv = document.createElement('div');
+        headerDiv.className = 'graph-node-header';
+
+        var badge = document.createElement('span');
+        badge.className = 'type-badge type-' + typeKey;
+        badge.textContent = typeLabels[typeKey] || node.type[0];
+        headerDiv.appendChild(badge);
+
+        var idSpan = document.createElement('span');
+        idSpan.className = 'wi-id';
+        idSpan.textContent = '#' + node.id;
+        headerDiv.appendChild(idSpan);
+
+        nodeEl.appendChild(headerDiv);
+
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'graph-node-title';
+        titleDiv.textContent = node.title;
+        titleDiv.title = node.title;
+        nodeEl.appendChild(titleDiv);
+
+        var footerDiv = document.createElement('div');
+        footerDiv.className = 'graph-node-footer';
+
+        var stateSpan = document.createElement('span');
+        var stateKey = 'state-' + node.state.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '');
+        stateSpan.className = 'state-badge ' + stateKey;
+        stateSpan.textContent = node.state;
+        footerDiv.appendChild(stateSpan);
+
+        if (node.assignedTo) {
+          var assignedSpan = document.createElement('span');
+          assignedSpan.className = 'assigned-to';
+          assignedSpan.textContent = node.assignedTo;
+          assignedSpan.title = node.assignedTo;
+          footerDiv.appendChild(assignedSpan);
+        }
+
+        if (node.url) {
+          var link = document.createElement('a');
+          link.className = 'graph-link';
+          link.href = node.url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Open';
+          link.title = 'Open in Azure DevOps';
+          link.onclick = function(e) { e.stopPropagation(); };
+          footerDiv.appendChild(link);
+        }
+
+        nodeEl.appendChild(footerDiv);
+        canvas.appendChild(nodeEl);
+      });
+    });
+
+    container.appendChild(canvas);
+  }
+
+  function nodeMatchesSearch(node, search) {
+    if (!search) return true;
+    if (node.title.toLowerCase().indexOf(search) !== -1) return true;
+    if (('#' + node.id).indexOf(search) !== -1) return true;
+    if (node.state.toLowerCase().indexOf(search) !== -1) return true;
+    return false;
+  }
+
+  function getSearch() {
+    return (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ── File loader ──────────────────────────────────────────
+
   window.loadFromFile = function(event) {
     var file = event.target.files[0];
     if (!file) return;
@@ -533,8 +988,12 @@ window.EPIC_TREE_DATA = [];
         document.getElementById('fileLoader').style.display = 'none';
         document.getElementById('toolbar').style.display = 'flex';
         document.getElementById('summary').style.display = 'flex';
+        document.getElementById('legend').style.display = 'flex';
+        if (!document.getElementById('viewToggle').querySelector('.active')) {
+          setupViewToggle();
+        }
         updateSummary();
-        renderTree();
+        renderCurrentView();
       } catch (err) {
         alert('Failed to parse JSON: ' + err.message);
       }
