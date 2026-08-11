@@ -304,21 +304,6 @@ header h1 {
 .graph-svg line.edge-epic-leaf { stroke: rgba(204,93,232,0.18); }
 .graph-svg line.edge-feature-leaf { stroke: rgba(51,154,240,0.20); }
 
-.graph-columns {
-  display: flex;
-  gap: 0;
-  position: relative;
-  z-index: 1;
-  min-width: max-content;
-}
-
-.graph-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 16px;
-  min-width: 260px;
-}
 .graph-col-header {
   font-size: 10px;
   font-weight: 700;
@@ -418,7 +403,6 @@ header h1 {
   .assigned-to { display: none; }
   .child-count { display: none; }
   .search-input { min-width: 150px; }
-  .graph-col { min-width: 200px; }
   .graph-node { min-width: 180px; }
 }
 </style>
@@ -713,10 +697,9 @@ window.EPIC_TREE_DATA = [];
 
   // ── Graph view ───────────────────────────────────────────
 
-  var COL_GAP = 60;
   var NODE_HEIGHT = 58;
   var NODE_GAP = 10;
-  var PAD_TOP = 8;
+  var PAD_TOP = 32;
   var PAD_LEFT = 16;
 
   function renderGraph() {
@@ -859,26 +842,14 @@ window.EPIC_TREE_DATA = [];
 
     canvas.appendChild(svg);
 
-    // Columns layer
-    var colsDiv = document.createElement('div');
-    colsDiv.className = 'graph-columns';
-
+    // Column headers
     var colLabels = ['Epics', 'Features', 'Stories / Bugs'];
     columns.forEach(function(col, levelIndex) {
-      var colDiv = document.createElement('div');
-      colDiv.className = 'graph-col';
-      colDiv.style.width = colWidth + 'px';
-      colDiv.style.paddingLeft = (levelIndex === 0 ? PAD_LEFT : 0) + 'px';
-
-      if (levelIndex < colLabels.length) {
-        var header = document.createElement('div');
-        header.className = 'graph-col-header';
-        header.textContent = colLabels[levelIndex];
-        if (levelIndex === columns.length - 1 && columns.length > colLabels.length) {
-          header.textContent = '...';
-        }
-        colDiv.appendChild(header);
-      }
+      var header = document.createElement('div');
+      header.className = 'graph-col-header';
+      header.style.cssText = 'position:absolute;left:' + (PAD_LEFT + levelIndex * colWidth) + 'px;top:0;width:' + (colWidth - 8) + 'px;';
+      header.textContent = levelIndex < colLabels.length ? colLabels[levelIndex] : '...';
+      canvas.appendChild(header);
 
       col.forEach(function(node) {
         var typeKey = node.typeKey;
