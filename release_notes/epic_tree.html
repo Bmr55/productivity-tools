@@ -482,6 +482,12 @@ window.EPIC_TREE_DATA = [];
     return;
   }
 
+  if (window.location.protocol === 'file:') {
+    document.getElementById('fileLoader').querySelector('.hint').textContent =
+      'Browsers block file:// fetches. Use the \u201CLoad file...\u201D button above to open your epic_tree.json.';
+    return;
+  }
+
   fetch('exports/epic_tree.json')
     .then(function(r) { if (!r.ok) throw new Error('not found'); return r.json(); })
     .then(function(tree) {
