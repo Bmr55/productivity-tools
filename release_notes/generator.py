@@ -97,7 +97,13 @@ def generate_all(
     return md, html, csv_content, release
 
 
-def export(release_id: int, base_dir: str = "exports", ado_client: ADOClient | None = None) -> tuple[Path, Path, Path]:
+def _default_export_dir() -> Path:
+    return Path(__file__).resolve().parent / "exports"
+
+
+def export(release_id: int, base_dir: str = "", ado_client: ADOClient | None = None) -> tuple[Path, Path, Path]:
+    if not base_dir:
+        base_dir = str(_default_export_dir())
     md_content, html_content, csv_content, release = generate_all(release_id, ado_client)
 
     release_id = _release_id_component(release.id)
