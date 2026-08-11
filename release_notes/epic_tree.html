@@ -993,7 +993,9 @@ window.EPIC_TREE_DATA = [];
   // ── Auto-init ────────────────────────────────────────────
 
   var data = window.EPIC_TREE_DATA;
+  console.log('[auto-init] FILE:', window.location.href);
   console.log('[auto-init] data type:', typeof data, 'isArray:', Array.isArray(data), 'length:', data ? data.length : 'n/a');
+  console.log('[auto-init] first item:', data && data.length > 0 ? JSON.stringify(data[0]).substring(0, 80) : 'n/a');
   console.log('[auto-init] protocol:', window.location.protocol);
   if (Array.isArray(data) && data.length > 0) {
     console.log('[auto-init] data present, calling init');
