@@ -511,6 +511,11 @@ window.EPIC_TREE_DATA = [];
     renderCurrentView();
   };
 
+  function clearViewContent(container) {
+    var nodes = container.querySelectorAll('.tree-node, .graph-canvas, #emptyState');
+    for (var i = 0; i < nodes.length; i++) nodes[i].remove();
+  }
+
   function renderCurrentView() {
     if (currentView === 'graph') {
       renderGraph();
@@ -543,8 +548,9 @@ window.EPIC_TREE_DATA = [];
   function renderTree() {
     var container = document.getElementById('treeContainer');
     container.className = 'tree-container';
-    container.innerHTML = '';
-    document.getElementById('emptyState').style.display = 'none';
+    clearViewContent(container);
+    var emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.style.display = 'none';
 
     var search = getSearch();
 
@@ -712,7 +718,7 @@ window.EPIC_TREE_DATA = [];
     var search = getSearch();
     var container = document.getElementById('treeContainer');
     container.className = 'tree-container graph';
-    container.innerHTML = '';
+    clearViewContent(container);
 
     var allNodes = [];
     var edges = [];
