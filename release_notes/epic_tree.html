@@ -474,29 +474,7 @@ header h1 {
 window.EPIC_TREE_DATA = [];
 
 (function() {
-  var data = window.EPIC_TREE_DATA;
   var currentView = 'tree';
-
-  if (Array.isArray(data) && data.length > 0) {
-    init(data);
-    return;
-  }
-
-  if (window.location.protocol === 'file:') {
-    document.getElementById('fileLoader').querySelector('.hint').textContent =
-      'Browsers block file:// fetches. Use the \u201CLoad file...\u201D button above to open your epic_tree.json.';
-    return;
-  }
-
-  fetch('exports/epic_tree.json')
-    .then(function(r) { if (!r.ok) throw new Error('not found'); return r.json(); })
-    .then(function(tree) {
-      if (Array.isArray(tree) && tree.length > 0) {
-        init(tree);
-      }
-    })
-    .catch(function() {
-    });
 
   function init(treeData) {
     document.getElementById('fileLoader').style.display = 'none';
@@ -529,9 +507,9 @@ window.EPIC_TREE_DATA = [];
     }
   }
 
-  function onSearch() {
+  window.onSearch = function() {
     renderCurrentView();
-  }
+  };
 
   function renderCurrentView() {
     if (currentView === 'graph') {
@@ -1006,6 +984,26 @@ window.EPIC_TREE_DATA = [];
     };
     reader.readAsText(file);
   };
+
+  // ── Auto-init ────────────────────────────────────────────
+
+  var data = window.EPIC_TREE_DATA;
+  if (Array.isArray(data) && data.length > 0) {
+    init(data);
+  } else if (window.location.protocol === 'file:') {
+    document.getElementById('fileLoader').querySelector('.hint').textContent =
+      'Browsers block file:// fetches. Use the \u201CLoad file...\u201D button above to open your epic_tree.json.';
+  } else {
+    fetch('exports/epic_tree.json')
+      .then(function(r) { if (!r.ok) throw new Error('not found'); return r.json(); })
+      .then(function(tree) {
+        if (Array.isArray(tree) && tree.length > 0) {
+          init(tree);
+        }
+      })
+      .catch(function() {
+      });
+  }
 
 })();
 </script>
