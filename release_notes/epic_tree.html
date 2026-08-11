@@ -488,22 +488,27 @@ window.EPIC_TREE_DATA = [];
   }
 
   function setupViewToggle() {
-    var buttons = document.querySelectorAll('#viewToggle .btn');
+    var toggle = document.getElementById('viewToggle');
+    var buttons = toggle.querySelectorAll('.btn');
     for (var i = 0; i < buttons.length; i++) {
-      buttons[i].addEventListener('click', function(e) {
+      buttons[i].onclick = function() {
         var view = this.getAttribute('data-view');
         if (view === currentView) return;
         currentView = view;
-        var all = document.querySelectorAll('#viewToggle .btn');
+        var all = toggle.querySelectorAll('.btn');
         for (var j = 0; j < all.length; j++) {
-          all[j].classList.toggle('active', all[j].getAttribute('data-view') === view);
+          all[j].className = all[j].className.replace(/\s*active/g, '');
+          if (all[j].getAttribute('data-view') === view) {
+            all[j].className += ' active';
+          }
         }
         var treeOnly = document.querySelectorAll('.tree-only');
         for (var k = 0; k < treeOnly.length; k++) {
           treeOnly[k].style.display = view === 'tree' ? '' : 'none';
         }
         renderCurrentView();
-      });
+        return false;
+      };
     }
   }
 
