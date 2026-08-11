@@ -461,24 +461,34 @@ window.EPIC_TREE_DATA = [];
   var currentView = 'tree';
 
   function init(treeData) {
+    console.log('[init] called with', treeData.length, 'nodes');
     document.getElementById('fileLoader').style.display = 'none';
     window.EPIC_TREE_DATA = treeData;
     document.getElementById('toolbar').style.display = 'flex';
     document.getElementById('summary').style.display = 'flex';
     document.getElementById('legend').style.display = 'flex';
+    console.log('[init] calling setupViewToggle');
     setupViewToggle();
+    console.log('[init] calling updateSummary');
     updateSummary();
+    console.log('[init] calling renderCurrentView');
     renderCurrentView();
   }
 
   function setupViewToggle() {
     var toggle = document.getElementById('viewToggle');
+    console.log('[setupViewToggle] toggle element:', toggle);
     var buttons = toggle.querySelectorAll('.btn');
+    console.log('[setupViewToggle] found', buttons.length, 'buttons');
     for (var i = 0; i < buttons.length; i++) {
+      console.log('[setupViewToggle] binding onclick to button', i, 'data-view=' + buttons[i].getAttribute('data-view'));
       buttons[i].onclick = function() {
+        console.log('[onclick] FIRED, this=', this);
         var view = this.getAttribute('data-view');
-        if (view === currentView) return;
+        console.log('[onclick] view=', view, 'currentView=', currentView);
+        if (view === currentView) { console.log('[onclick] same view, skipping'); return; }
         currentView = view;
+        console.log('[onclick] switching to', view);
         var all = toggle.querySelectorAll('.btn');
         for (var j = 0; j < all.length; j++) {
           all[j].className = all[j].className.replace(/\s*active/g, '');
@@ -490,10 +500,13 @@ window.EPIC_TREE_DATA = [];
         for (var k = 0; k < treeOnly.length; k++) {
           treeOnly[k].style.display = view === 'tree' ? '' : 'none';
         }
+        console.log('[onclick] calling renderCurrentView');
         renderCurrentView();
+        console.log('[onclick] done');
         return false;
       };
     }
+    console.log('[setupViewToggle] complete');
   }
 
   window.onSearch = function() {
@@ -506,11 +519,15 @@ window.EPIC_TREE_DATA = [];
   }
 
   function renderCurrentView() {
+    console.log('[renderCurrentView] currentView=', currentView);
     if (currentView === 'graph') {
+      console.log('[renderCurrentView] calling renderGraph');
       renderGraph();
     } else {
+      console.log('[renderCurrentView] calling renderTree');
       renderTree();
     }
+    console.log('[renderCurrentView] done');
   }
 
   // ── Summary ──────────────────────────────────────────────
@@ -703,8 +720,10 @@ window.EPIC_TREE_DATA = [];
   var PAD_LEFT = 16;
 
   function renderGraph() {
+    console.log('[renderGraph] START');
     var search = getSearch();
     var container = document.getElementById('treeContainer');
+    console.log('[renderGraph] container:', container);
     container.className = 'tree-container graph';
     clearViewContent(container);
 
@@ -750,7 +769,10 @@ window.EPIC_TREE_DATA = [];
 
     flatten(window.EPIC_TREE_DATA || [], null, 0, '');
 
+    console.log('[renderGraph] allNodes:', allNodes.length, 'edges:', edges.length);
+
     if (allNodes.length === 0) {
+      console.log('[renderGraph] no nodes, showing empty state');
       var msg = search ? 'No items match your filter.' : 'No data to display.';
       var emptyEl = document.createElement('div');
       emptyEl.id = 'emptyState';
@@ -922,6 +944,7 @@ window.EPIC_TREE_DATA = [];
     });
 
     container.appendChild(canvas);
+    console.log('[renderGraph] DONE - appended canvas to container');
   }
 
   function nodeMatchesSearch(node, search) {
@@ -970,20 +993,27 @@ window.EPIC_TREE_DATA = [];
   // ── Auto-init ────────────────────────────────────────────
 
   var data = window.EPIC_TREE_DATA;
+  console.log('[auto-init] data type:', typeof data, 'isArray:', Array.isArray(data), 'length:', data ? data.length : 'n/a');
+  console.log('[auto-init] protocol:', window.location.protocol);
   if (Array.isArray(data) && data.length > 0) {
+    console.log('[auto-init] data present, calling init');
     init(data);
   } else if (window.location.protocol === 'file:') {
+    console.log('[auto-init] file:// protocol, showing hint');
     document.getElementById('fileLoader').querySelector('.hint').textContent =
       'Browsers block file:// fetches. Use the \u201CLoad file...\u201D button above to open your epic_tree.json.';
   } else {
+    console.log('[auto-init] attempting fetch');
     fetch('exports/epic_tree.json')
       .then(function(r) { if (!r.ok) throw new Error('not found'); return r.json(); })
       .then(function(tree) {
+        console.log('[auto-init] fetch succeeded');
         if (Array.isArray(tree) && tree.length > 0) {
           init(tree);
         }
       })
-      .catch(function() {
+      .catch(function(err) {
+        console.log('[auto-init] fetch failed:', err);
       });
   }
 
