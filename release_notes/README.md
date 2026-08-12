@@ -59,7 +59,7 @@ $env:GITLAB_BASE_URL = "https://gitlab.example.com"
 $env:GITLAB_PRIVATE_TOKEN = "glpat-xxx"
 ```
 
-Environment variables override `.env` values. The clients auto-detect credentials. The ADO REST implementation is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data.
+Environment variables override `.env` values. The clients auto-detect credentials. With live ADO credentials, `get_release_by_id` fetches the release work item, its Test Task children (via a WIQL query on `System.Parent`), their linked User Stories and Bugs, and the parent Feature/Epic hierarchy from the Azure DevOps REST API (`api-version=7.0`). It assumes Test Tasks are children of the release work item. The GitLab REST client is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data.
 
 ## Project Structure
 

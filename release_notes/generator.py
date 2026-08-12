@@ -89,6 +89,8 @@ def generate_all(
     try:
         release: Release = ado_client.get_release_by_id(ado_release_id)
     except RuntimeError:
+        if ado_client.is_configured:
+            raise
         release = ADOClient(use_mock=True).get_release_by_id(ado_release_id)
     _resolve_gitlab_links(release, gl_client)
     md = generate_markdown(release)

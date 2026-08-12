@@ -155,8 +155,11 @@ class ADOConfigurationTests(unittest.TestCase):
             project="Project",
         )
         self.assertTrue(client.is_configured)
-        with self.assertRaisesRegex(NotImplementedError, "not yet implemented"):
-            client.get_release_by_id(1001)
+        with patch.object(
+            ADOClient, "_request", side_effect=RuntimeError("ADO API error 401: access denied")
+        ):
+            with self.assertRaisesRegex(RuntimeError, "access denied"):
+                client.get_release_by_id(1001)
 
 
 class ExportPathTests(unittest.TestCase):
