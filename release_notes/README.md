@@ -46,6 +46,8 @@ ADO_PROJECT=YourProject
 
 GITLAB_BASE_URL=https://gitlab.example.com
 GITLAB_PRIVATE_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+# Optional: scope GitLab lookups to a single project
+# GITLAB_PROJECT_ID=your-group/your-project
 ```
 
 ### Option 2 — Environment variables
@@ -57,9 +59,10 @@ $env:ADO_PAT = "your-token"
 $env:ADO_PROJECT = "YourProject"
 $env:GITLAB_BASE_URL = "https://gitlab.example.com"
 $env:GITLAB_PRIVATE_TOKEN = "glpat-xxx"
+# Optional: $env:GITLAB_PROJECT_ID = "your-group/your-project"
 ```
 
-Environment variables override `.env` values. The clients auto-detect credentials. The ADO REST implementation is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data.
+Environment variables override `.env` values. The clients auto-detect credentials. The ADO REST implementation is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data. The GitLab REST client is fully implemented: with `GITLAB_BASE_URL` and `GITLAB_PRIVATE_TOKEN` configured, it searches GitLab issues for ADO work-item links and resolves closing merge requests; otherwise it falls back to mock data. Set `GITLAB_PROJECT_ID` (numeric ID or `group/project` path) to scope all GitLab lookups to a single project for faster, more precise queries.
 
 ## Project Structure
 

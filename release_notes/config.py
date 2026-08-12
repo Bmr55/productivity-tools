@@ -60,6 +60,10 @@ class _LazyConfig:
     def _resolve_gitlab_token() -> str:
         return _LazyConfig.get("GITLAB_PRIVATE_TOKEN")
 
+    @staticmethod
+    def _resolve_gitlab_project_id() -> str:
+        return _LazyConfig.get("GITLAB_PROJECT_ID")
+
 
 # Lazy accessors — secrets are only resolved from env/.env on first call.
 ADO_ORG_URL = _LazyConfig._resolve_ado_org_url
@@ -67,3 +71,4 @@ ADO_PAT = _LazyConfig._resolve_ado_pat
 ADO_PROJECT = _LazyConfig._resolve_ado_project
 GITLAB_BASE_URL = _LazyConfig._resolve_gitlab_base_url
 GITLAB_PRIVATE_TOKEN = _LazyConfig._resolve_gitlab_token
+GITLAB_PROJECT_ID = _LazyConfig._resolve_gitlab_project_id

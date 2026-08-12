@@ -12,6 +12,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 from release_notes.ado_client import ADOClient
 from release_notes.generator import export, generate_all
+from release_notes.gitlab_client import GitLabClient
 
 
 def main() -> None:
@@ -45,12 +46,15 @@ def main() -> None:
         client = ADOClient(use_mock=args.mock)
     except ValueError as exc:
         parser.error(str(exc))
+    gl_client = GitLabClient(use_mock=True) if args.mock else None
 
     if args.stdout:
         if args.format == "all":
             print("note: --stdout with --format all only prints markdown; use --format markdown|html|csv to be explicit.", file=sys.stderr)
         try:
-            md, html, csv_content, _ = generate_all(args.release_id, ado_client=client)
+            md, html, csv_content, _ = generate_all(
+                args.release_id, ado_client=client, gl_client=gl_client
+            )
         except (NotImplementedError, RuntimeError, ValueError) as exc:
             parser.error(str(exc))
         if args.format == "html":
@@ -72,7 +76,7 @@ def main() -> None:
         formats = ["md"]
 
     try:
-        md_path, html_path, csv_path = export(args.release_id, ado_client=client)
+        md_path, html_path, csv_path = export(args.release_id, ado_client=client, gl_client=gl_client)
     except (NotImplementedError, RuntimeError, ValueError) as exc:
         parser.error(str(exc))
     for fmt in formats:
