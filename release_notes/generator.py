@@ -84,7 +84,12 @@ def generate_all(
         except (RuntimeError, ValueError):
             ado_client = ADOClient(use_mock=True)
     if gl_client is None:
-        gl_client = GitLabClient(use_mock=True)
+        try:
+            gl_client = GitLabClient()
+        except (RuntimeError, ValueError):
+            gl_client = GitLabClient(use_mock=True)
+        if not gl_client.is_configured:
+            gl_client = GitLabClient(use_mock=True)
 
     try:
         release: Release = ado_client.get_release_by_id(ado_release_id)
@@ -101,10 +106,15 @@ def _default_export_dir() -> Path:
     return Path(__file__).resolve().parent / "exports"
 
 
-def export(release_id: int, base_dir: str = "", ado_client: ADOClient | None = None) -> tuple[Path, Path, Path]:
+def export(
+    release_id: int,
+    base_dir: str = "",
+    ado_client: ADOClient | None = None,
+    gl_client: GitLabClient | None = None,
+) -> tuple[Path, Path, Path]:
     if not base_dir:
         base_dir = str(_default_export_dir())
-    md_content, html_content, csv_content, release = generate_all(release_id, ado_client)
+    md_content, html_content, csv_content, release = generate_all(release_id, ado_client, gl_client)
 
     release_id = _release_id_component(release.id)
     dirname = f"{_sanitize(release.title) or 'release'}_{release_id}"
