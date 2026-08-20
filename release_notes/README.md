@@ -61,6 +61,8 @@ $env:GITLAB_PRIVATE_TOKEN = "glpat-xxx"
 
 Environment variables override `.env` values. The clients auto-detect credentials. With live ADO credentials, `get_release_by_id` fetches the release work item, its Test Task children (via a WIQL query on `System.Parent`), their linked User Stories and Bugs, and the parent Feature/Epic hierarchy from the Azure DevOps REST API (`api-version=7.0`). It assumes Test Tasks are children of the release work item. The GitLab REST client is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data.
 
+**Corporate VPN note**: if requests fail with `[WinError 10060]` (connection timeout), the VPN likely requires a proxy. urllib uses the Windows system proxy automatically, but PAC-based proxies are not supported — set `ADO_PROXY` (e.g. `http://proxy.corp.com:8080`) in `.env` or the environment to route ADO traffic explicitly. Timeout-class failures are retried up to 3 times before failing with this hint.
+
 ## Epic Tree Export
 
 Exports the open Epic/Feature/User Story/Bug hierarchy (including epics nested under other epics) to JSON plus a self-contained interactive HTML page:

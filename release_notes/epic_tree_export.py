@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 from base64 import b64encode
@@ -29,6 +30,8 @@ from release_notes import config
 API_VERSION = "7.0"
 LINK_HIERARCHY_FORWARD = "System.LinkTypes.Hierarchy-Forward"
 EXCLUDED_STATES = {"closed", "removed", "done"}
+REQUEST_TIMEOUT = 30
+MAX_ATTEMPTS = 3
 
 EXPORTS_DIR = Path(__file__).resolve().parent / "exports"
 TEMPLATE_PATH = Path(__file__).resolve().parent / "epic_tree.html"
@@ -45,24 +48,58 @@ def _ado_url(path: str) -> str:
     return f"{org}/{project}/_apis{path}"
 
 
+def _urlopen(req: urllib.request.Request):
+    """Open a request with an explicit timeout, honoring ADO_PROXY when set.
+
+    urllib picks up the Windows system proxy by default; ADO_PROXY is an
+    escape hatch for VPNs that use a PAC file or an undocumented proxy."""
+    proxy = config.ADO_PROXY()
+    if proxy:
+        handler = urllib.request.ProxyHandler({"http": proxy, "https": proxy})
+        return urllib.request.build_opener(handler).open(req, timeout=REQUEST_TIMEOUT)
+    return urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT)
+
+
+def _is_transient_error(err: urllib.error.URLError) -> bool:
+    text = str(getattr(err, "reason", err)).lower()
+    return "timed out" in text or "timeout" in text or "10060" in text
+
+
+VPN_HINT = (
+    "If you are on a corporate VPN, a proxy is likely required: set "
+    "ADO_PROXY (e.g. http://proxy.corp.com:8080) in release_notes/.env "
+    "or the environment and retry."
+)
+
+
 def ado_request(method: str, path: str, body: dict | None = None) -> dict | list:
     url = _ado_url(path)
     data = json.dumps(body).encode("utf-8") if body else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", _auth_header())
-    req.add_header("Accept", "application/json")
-    if data:
-        req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode("utf-8", errors="replace")
+    last_err: urllib.error.URLError | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Authorization", _auth_header())
+        req.add_header("Accept", "application/json")
+        if data:
+            req.add_header("Content-Type", "application/json")
         try:
-            msg = json.loads(body_text).get("message", body_text)
-        except Exception:
-            msg = body_text
-        raise RuntimeError(f"ADO API error {e.code}: {msg}") from None
+            with _urlopen(req) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body_text = e.read().decode("utf-8", errors="replace")
+            try:
+                msg = json.loads(body_text).get("message", body_text)
+            except Exception:
+                msg = body_text
+            raise RuntimeError(f"ADO API error {e.code}: {msg}") from None
+        except urllib.error.URLError as e:
+            last_err = e
+            if attempt < MAX_ATTEMPTS and _is_transient_error(e):
+                print(f"Connection issue (attempt {attempt}/{MAX_ATTEMPTS}): {e.reason} — retrying...")
+                time.sleep(2)
+                continue
+            break
+    raise RuntimeError(f"ADO API connection error: {last_err.reason}. {VPN_HINT}") from None
 
 
 def _extract_id_from_url(url: str) -> int | None:

@@ -53,6 +53,10 @@ class _LazyConfig:
         return _LazyConfig.get("ADO_PROJECT")
 
     @staticmethod
+    def _resolve_ado_proxy() -> str:
+        return _LazyConfig.get("ADO_PROXY")
+
+    @staticmethod
     def _resolve_gitlab_base_url() -> str:
         return _LazyConfig.get("GITLAB_BASE_URL")
 
@@ -65,5 +69,6 @@ class _LazyConfig:
 ADO_ORG_URL = _LazyConfig._resolve_ado_org_url
 ADO_PAT = _LazyConfig._resolve_ado_pat
 ADO_PROJECT = _LazyConfig._resolve_ado_project
+ADO_PROXY = _LazyConfig._resolve_ado_proxy
 GITLAB_BASE_URL = _LazyConfig._resolve_gitlab_base_url
 GITLAB_PRIVATE_TOKEN = _LazyConfig._resolve_gitlab_token
