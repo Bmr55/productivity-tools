@@ -83,6 +83,13 @@ def _batch_get_work_items(ids: list[int]) -> list[dict]:
     return results
 
 
+def _html_url(wid: int) -> str:
+    from urllib.parse import quote, unquote
+    org = config.ADO_ORG_URL().rstrip("/")
+    project = quote(unquote(config.ADO_PROJECT()), safe="")
+    return f"{org}/{project}/_workitems/edit/{wid}"
+
+
 def _display_name(field: object) -> str:
     if not field:
         return ""
@@ -97,8 +104,8 @@ def build_tree(use_mock: bool = False) -> list[dict]:
     if use_mock:
         return MOCK_EPIC_TREE
 
-    # Step 1: WIQL query for non-closed Epics
-    print("Querying non-closed Epics...")
+    # Step 1: WIQL query for open Epics
+    print("Querying open Epics...")
     wiql_result = ado_request(
         "POST",
         f"/wit/wiql?api-version={API_VERSION}",
@@ -115,7 +122,7 @@ def build_tree(use_mock: bool = False) -> list[dict]:
     )
     epic_refs = wiql_result.get("workItems", [])
     if not epic_refs:
-        print("No non-closed Epics found.")
+        print("No open Epics found.")
         return []
 
     epic_ids = [r["id"] for r in epic_refs]
@@ -129,12 +136,19 @@ def build_tree(use_mock: bool = False) -> list[dict]:
     feature_ids: set[int] = set()
     direct_child_ids: set[int] = set()
 
+    epic_id_set = set(epic_ids)
+    parent_epic: dict[int, int | None] = {eid: None for eid in epic_ids}
+
     for item in epic_items:
         all_items[item["id"]] = item
         for rel in item.get("relations", []):
             if rel.get("rel") == LINK_HIERARCHY_FORWARD:
                 cid = _extract_id_from_url(rel["url"])
-                if cid:
+                if not cid:
+                    continue
+                if cid in epic_id_set and cid != item["id"]:
+                    parent_epic[cid] = item["id"]
+                elif cid not in epic_id_set:
                     feature_ids.add(cid)
 
     # Step 3: Batch get Features
@@ -152,12 +166,12 @@ def build_tree(use_mock: bool = False) -> list[dict]:
                         if cid:
                             direct_child_ids.add(cid)
 
-    # Also collect non-Feature direct children of Epics
+    # Also collect non-Feature direct children of Epics (excluding child Epics)
     for item in epic_items:
         for rel in item.get("relations", []):
             if rel.get("rel") == LINK_HIERARCHY_FORWARD:
                 cid = _extract_id_from_url(rel["url"])
-                if cid and cid not in feature_ids:
+                if cid and cid not in feature_ids and cid not in epic_id_set:
                     direct_child_ids.add(cid)
 
     # Step 4: Batch get child User Stories/Bugs
@@ -168,8 +182,6 @@ def build_tree(use_mock: bool = False) -> list[dict]:
             all_items[item["id"]] = item
 
     # Step 5: Build tree nodes
-    feature_id_set = set(feature_ids)
-
     def _leaf_node(wid: int, wtype: str) -> dict:
         item = all_items.get(wid, {})
         fields = item.get("fields", {})
@@ -179,7 +191,7 @@ def build_tree(use_mock: bool = False) -> list[dict]:
             "type": "User Story" if wtype == "user story" else "Bug",
             "state": fields.get("System.State", ""),
             "assignedTo": _display_name(fields.get("System.AssignedTo")),
-            "url": item.get("_links", {}).get("html", {}).get("href", ""),
+            "url": _html_url(wid),
             "children": [],
             "childStats": {"stories": 0, "bugs": 0},
         }
@@ -209,17 +221,18 @@ def build_tree(use_mock: bool = False) -> list[dict]:
             "type": "Feature",
             "state": fields.get("System.State", ""),
             "assignedTo": _display_name(fields.get("System.AssignedTo")),
-            "url": item.get("_links", {}).get("html", {}).get("href", ""),
+            "url": _html_url(fid),
             "children": children,
             "childStats": stats,
         }
 
-    def _epic_node(eid: int) -> dict:
+    def _epic_node(eid: int, visited: set[int]) -> dict:
         item = all_items.get(eid, {})
         fields = item.get("fields", {})
+        sub_epics: list[dict] = []
         features: list[dict] = []
         direct_children: list[dict] = []
-        stats = {"features": 0, "stories": 0, "bugs": 0}
+        stats = {"epics": 0, "features": 0, "stories": 0, "bugs": 0}
         for rel in item.get("relations", []):
             if rel.get("rel") != LINK_HIERARCHY_FORWARD:
                 continue
@@ -228,7 +241,15 @@ def build_tree(use_mock: bool = False) -> list[dict]:
                 continue
             cfields = all_items[cid].get("fields", {})
             ctype = (cfields.get("System.WorkItemType", "")).lower()
-            if ctype == "feature":
+            if ctype == "epic":
+                if parent_epic.get(cid) == eid and cid not in visited:
+                    sub = _epic_node(cid, visited | {cid})
+                    sub_epics.append(sub)
+                    stats["epics"] += 1 + sub["childStats"]["epics"]
+                    stats["features"] += sub["childStats"]["features"]
+                    stats["stories"] += sub["childStats"]["stories"]
+                    stats["bugs"] += sub["childStats"]["bugs"]
+            elif ctype == "feature":
                 feat = _feature_node(cid)
                 features.append(feat)
                 stats["features"] += 1
@@ -246,13 +267,17 @@ def build_tree(use_mock: bool = False) -> list[dict]:
             "type": "Epic",
             "state": fields.get("System.State", ""),
             "assignedTo": _display_name(fields.get("System.AssignedTo")),
-            "url": item.get("_links", {}).get("html", {}).get("href", ""),
-            "children": features + direct_children,
+            "url": _html_url(eid),
+            "children": sub_epics + features + direct_children,
             "childStats": stats,
         }
 
-    epics = [_epic_node(eid) for eid in epic_ids]
-    print(f"Tree built: {len(epics)} Epic(s).")
+    epics = [
+        _epic_node(eid, {eid})
+        for eid in epic_ids
+        if parent_epic[eid] is None
+    ]
+    print(f"Tree built: {len(epics)} top-level Epic(s), {len(epic_ids)} total.")
     return epics
 
 
@@ -265,6 +290,42 @@ MOCK_EPIC_TREE: list[dict] = [
         "assignedTo": "Alice Chen",
         "url": "https://dev.azure.com/org/project/_workitems/edit/100",
         "children": [
+            {
+                "id": 102,
+                "title": "Mobile Experience",
+                "type": "Epic",
+                "state": "In Progress",
+                "assignedTo": "Alice Chen",
+                "url": "https://dev.azure.com/org/project/_workitems/edit/102",
+                "children": [
+                    {
+                        "id": 204,
+                        "title": "Offline Mode",
+                        "type": "Feature",
+                        "state": "In Progress",
+                        "assignedTo": "Hina Ito",
+                        "url": "https://dev.azure.com/org/project/_workitems/edit/204",
+                        "children": [
+                            {
+                                "id": 3011, "title": "Cache dashboard data for offline viewing",
+                                "type": "User Story", "state": "Active",
+                                "assignedTo": "Hina Ito",
+                                "url": "https://dev.azure.com/org/project/_workitems/edit/3011",
+                                "children": [], "childStats": {"stories": 0, "bugs": 0},
+                            },
+                            {
+                                "id": 3012, "title": "Sync conflicts when editing offline notes",
+                                "type": "Bug", "state": "New",
+                                "assignedTo": "",
+                                "url": "https://dev.azure.com/org/project/_workitems/edit/3012",
+                                "children": [], "childStats": {"stories": 0, "bugs": 0},
+                            },
+                        ],
+                        "childStats": {"stories": 1, "bugs": 1},
+                    },
+                ],
+                "childStats": {"epics": 0, "features": 1, "stories": 1, "bugs": 1},
+            },
             {
                 "id": 200,
                 "title": "Dashboard V2 Widget Suite",
@@ -323,7 +384,7 @@ MOCK_EPIC_TREE: list[dict] = [
                 "childStats": {"stories": 0, "bugs": 2},
             },
         ],
-        "childStats": {"features": 2, "stories": 2, "bugs": 3},
+        "childStats": {"epics": 1, "features": 3, "stories": 3, "bugs": 3},
     },
     {
         "id": 101,

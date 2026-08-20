@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ADO Epic Tree</title>
+<title>ADO Open Epics</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,10 +17,10 @@
   --text-bright: #e9ecef;
   --accent: #4c6ef5;
   --accent-hover: #5c7cfa;
-  --epic: #cc5de8;
-  --feature: #339af0;
-  --userstory: #51cf66;
-  --bug: #ff6b6b;
+  --epic: #ff9c00;
+  --feature: #773b93;
+  --userstory: #009ccc;
+  --bug: #cc293d;
   --success: #51cf66;
   --warning: #fcc419;
   --danger: #ff6b6b;
@@ -113,6 +113,20 @@ header h1 {
 .search-input:focus { border-color: var(--accent); }
 .search-input::placeholder { color: var(--text-muted); }
 
+.epic-filter {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  max-width: 240px;
+  cursor: pointer;
+}
+.epic-filter:focus { border-color: var(--accent); }
+
 .summary {
   padding: 10px 24px;
   display: flex;
@@ -173,10 +187,10 @@ header h1 {
   min-width: 22px;
   text-align: center;
 }
-.type-epic     { background: rgba(204,93,232,0.18); color: var(--epic); }
-.type-feature  { background: rgba(51,154,240,0.18); color: var(--feature); }
-.type-user-story { background: rgba(81,207,102,0.18); color: var(--userstory); }
-.type-bug      { background: rgba(255,107,107,0.18); color: var(--bug); }
+.type-epic     { background: rgba(255,156,0,0.18); color: var(--epic); }
+.type-feature  { background: rgba(119,59,147,0.18); color: var(--feature); }
+.type-user-story { background: rgba(0,156,204,0.18); color: var(--userstory); }
+.type-bug      { background: rgba(204,41,61,0.18); color: var(--bug); }
 
 .wi-id {
   font-family: var(--font-mono);
@@ -244,6 +258,101 @@ header h1 {
 .tree-row:hover .ado-link { opacity: 1; }
 .ado-link:hover { text-decoration: underline; }
 
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-hover); }
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 10;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.settings-overlay.open { display: flex; }
+
+.settings-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.settings-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.settings-body { padding: 12px 16px; overflow-y: auto; }
+.settings-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.settings-item.sub { margin-left: 26px; }
+.settings-item input { accent-color: var(--accent); }
+.settings-item .wi-id { min-width: 44px; }
+.settings-item.disabled { opacity: 0.45; pointer-events: none; }
+.settings-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.settings-tabs { display: flex; gap: 4px; }
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px 8px;
+  cursor: pointer;
+}
+.tab-btn:hover { color: var(--text-bright); }
+.tab-btn.active { color: var(--text-bright); border-bottom-color: var(--accent); }
+
+.order-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.order-item.sub { margin-left: 26px; }
+.order-btn {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+.order-btn:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.order-btn:disabled { background: transparent; border-color: var(--border); opacity: 0.3; cursor: default; }
+
 .empty-state {
   text-align: center;
   padding: 60px 24px;
@@ -300,9 +409,10 @@ header h1 {
   stroke: var(--border);
   stroke-width: 1.5;
 }
-.graph-svg line.edge-epic-feature { stroke: rgba(204,93,232,0.25); }
-.graph-svg line.edge-epic-leaf { stroke: rgba(204,93,232,0.18); }
-.graph-svg line.edge-feature-leaf { stroke: rgba(51,154,240,0.20); }
+.graph-svg line.edge-epic-epic { stroke: rgba(255,156,0,0.30); }
+.graph-svg line.edge-epic-feature { stroke: rgba(255,156,0,0.25); }
+.graph-svg line.edge-epic-leaf { stroke: rgba(255,156,0,0.18); }
+.graph-svg line.edge-feature-leaf { stroke: rgba(119,59,147,0.20); }
 
 .graph-col-header {
   font-size: 10px;
@@ -410,7 +520,7 @@ header h1 {
 <body>
 
 <header>
-  <h1>ADO Epic Tree &mdash; Non-Closed Epics</h1>
+  <h1>ADO Open Epics</h1>
   <span id="exportTimestamp" style="font-size:11px;color:var(--text-muted)"></span>
 </header>
 
@@ -419,9 +529,12 @@ header h1 {
     <button class="btn active" data-view="tree">Tree</button>
     <button class="btn" data-view="graph">Graph</button>
   </div>
-  <button class="btn tree-only" onclick="expandAll()">Expand All</button>
-  <button class="btn tree-only" onclick="collapseAll()">Collapse All</button>
+  <button class="btn tree-only" id="expandToggle" onclick="toggleExpand()">Collapse All</button>
+  <button class="btn" onclick="openSettings()">Visibility Settings</button>
   <input type="text" class="search-input" id="searchInput" placeholder="Filter by title..." oninput="onSearch()">
+  <select class="epic-filter" id="epicFilter" onchange="onSearch()">
+    <option value="">All epics</option>
+  </select>
   <span style="flex:1"></span>
   <label class="btn" title="Load epic_tree.json from exports folder">
     <input type="file" id="fileInput" accept=".json" onchange="loadFromFile(event)" hidden>
@@ -441,6 +554,26 @@ header h1 {
   <span><span class="swatch feature"></span> Feature</span>
   <span><span class="swatch story"></span> User Story</span>
   <span><span class="swatch bug"></span> Bug</span>
+</div>
+
+<div class="settings-overlay" id="settingsOverlay" onclick="overlayClicked(event)">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <div class="settings-tabs">
+        <button class="tab-btn active" id="tabBtnVisibility" onclick="switchSettingsTab('visibility')">Visibility</button>
+        <button class="tab-btn" id="tabBtnOrder" onclick="switchSettingsTab('order')">Order</button>
+      </div>
+    </div>
+    <div class="settings-body" id="settingsBody">
+      <div id="tabVisibility"></div>
+      <div id="tabOrder" style="display:none"></div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn" onclick="resetSettings()">Reset</button>
+      <button class="btn" onclick="closeSettings()">Close</button>
+      <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
 </div>
 
 <div class="tree-container" id="treeContainer">
@@ -469,6 +602,8 @@ window.EPIC_TREE_DATA = [];
     document.getElementById('legend').style.display = 'flex';
     console.log('[init] calling setupViewToggle');
     setupViewToggle();
+    console.log('[init] calling populateEpicFilter');
+    populateEpicFilter();
     console.log('[init] calling updateSummary');
     updateSummary();
     console.log('[init] calling renderCurrentView');
@@ -513,6 +648,334 @@ window.EPIC_TREE_DATA = [];
     renderCurrentView();
   };
 
+  function populateEpicFilter() {
+    var select = document.getElementById('epicFilter');
+    var prev = select.value;
+    select.innerHTML = '';
+    var allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'All epics';
+    select.appendChild(allOption);
+    var data = window.EPIC_TREE_DATA || [];
+    if (getHiddenEpics().length > 0) data = stripHiddenEpics(data);
+    applyEpicOrder(data).forEach(function(epic) {
+      var opt = document.createElement('option');
+      opt.value = String(epic.id);
+      opt.textContent = '#' + epic.id + ' \u2014 ' + epic.title;
+      select.appendChild(opt);
+    });
+    select.value = prev;
+    if (select.value !== prev) select.value = '';
+  }
+
+  function getFilteredData() {
+    var data = applyEpicOrder(window.EPIC_TREE_DATA || []);
+    if (getHiddenEpics().length > 0) data = stripHiddenEpics(data);
+    var selected = document.getElementById('epicFilter').value;
+    if (!selected) return data;
+    return data.filter(function(epic) {
+      return String(epic.id) === selected;
+    });
+  }
+
+  // ── Hidden epics (localStorage) ──────────────────────────
+
+  var HIDDEN_KEY = 'epicTree.hiddenEpics';
+
+  function getHiddenEpics() {
+    try {
+      var raw = localStorage.getItem(HIDDEN_KEY);
+      var ids = JSON.parse(raw || '[]');
+      return Array.isArray(ids) ? ids : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveHiddenEpics(ids) {
+    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids)); } catch (err) {}
+  }
+
+  function isHiddenEpic(id) {
+    return getHiddenEpics().indexOf(id) !== -1;
+  }
+
+  var ORDER_KEY = 'epicTree.epicOrder';
+
+  function getOrder() {
+    try {
+      var ids = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+      return Array.isArray(ids) ? ids : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveOrder(ids) {
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(ids)); } catch (err) {}
+  }
+
+  function applyEpicOrder(nodes) {
+    var order = getOrder();
+    if (!order.length) return nodes;
+    var idx = {};
+    order.forEach(function(id, i) { idx[id] = i; });
+    function process(arr) {
+      var mapped = (arr || []).map(function(n) {
+        if (n.children && n.children.length) {
+          var copy = {};
+          for (var k in n) copy[k] = n[k];
+          copy.children = process(n.children);
+          return copy;
+        }
+        return n;
+      });
+      var hasEpic = mapped.some(function(n) { return n.type === 'Epic'; });
+      if (!hasEpic || mapped.length < 2) return mapped;
+      var epics = mapped.filter(function(n) { return n.type === 'Epic'; });
+      epics.sort(function(a, b) {
+        var ia = idx[a.id] !== undefined ? idx[a.id] : 99999;
+        var ib = idx[b.id] !== undefined ? idx[b.id] : 99999;
+        return ia - ib;
+      });
+      var rest = mapped.filter(function(n) { return n.type !== 'Epic'; });
+      return epics.concat(rest);
+    }
+    return process(nodes);
+  }
+
+  // ── Order tab (settings panel) ───────────────────────────
+
+  var pendingOrder = null;
+
+  function buildOrderBody() {
+    pendingOrder = [];
+    applyEpicOrder(window.EPIC_TREE_DATA || []).forEach(function(epic) {
+      var subs = [];
+      (epic.children || []).forEach(function(child) {
+        if (child.type === 'Epic') subs.push({ id: child.id, title: child.title });
+      });
+      pendingOrder.push({ id: epic.id, title: epic.title, subs: subs });
+    });
+    renderOrderList();
+  }
+
+  function renderOrderList() {
+    var body = document.getElementById('tabOrder');
+    body.innerHTML = '';
+    var hint = document.createElement('div');
+    hint.className = 'settings-hint';
+    hint.textContent = 'Use the arrows to reorder top-level epics and their sub-epics. Order applies to the tree and graph views.';
+    body.appendChild(hint);
+    pendingOrder.forEach(function(item, i) {
+      body.appendChild(orderRow(item.id, item.title, 'root', i, -1, pendingOrder.length));
+      item.subs.forEach(function(sub, j) {
+        body.appendChild(orderRow(sub.id, sub.title, 'sub', j, i, item.subs.length));
+      });
+    });
+  }
+
+  function orderRow(id, title, kind, index, parentIndex, groupSize) {
+    var row = document.createElement('div');
+    row.className = 'order-item' + (kind === 'sub' ? ' sub' : '');
+
+    var up = document.createElement('button');
+    up.className = 'order-btn';
+    up.type = 'button';
+    up.textContent = '\u2191';
+    up.title = 'Move up';
+    up.disabled = index === 0;
+    up.onclick = function() { moveOrderItem(kind, parentIndex, index, -1); };
+    row.appendChild(up);
+
+    var down = document.createElement('button');
+    down.className = 'order-btn';
+    down.type = 'button';
+    down.textContent = '\u2193';
+    down.title = 'Move down';
+    down.disabled = index === groupSize - 1;
+    down.onclick = function() { moveOrderItem(kind, parentIndex, index, 1); };
+    row.appendChild(down);
+
+    var idEl = document.createElement('span');
+    idEl.className = 'wi-id';
+    idEl.textContent = '#' + id;
+    row.appendChild(idEl);
+
+    var titleEl = document.createElement('span');
+    titleEl.className = 'wi-title';
+    titleEl.textContent = title;
+    titleEl.title = title;
+    row.appendChild(titleEl);
+
+    return row;
+  }
+
+  function moveOrderItem(kind, parentIndex, index, dir) {
+    var j = index + dir;
+    if (kind === 'root') {
+      if (j < 0 || j >= pendingOrder.length) return;
+      var tmp = pendingOrder[index];
+      pendingOrder[index] = pendingOrder[j];
+      pendingOrder[j] = tmp;
+    } else {
+      var subs = pendingOrder[parentIndex].subs;
+      if (j < 0 || j >= subs.length) return;
+      var t = subs[index];
+      subs[index] = subs[j];
+      subs[j] = t;
+    }
+    renderOrderList();
+  }
+
+  function flattenPendingOrder() {
+    var ids = [];
+    pendingOrder.forEach(function(item) {
+      ids.push(item.id);
+      item.subs.forEach(function(sub) { ids.push(sub.id); });
+    });
+    return ids;
+  }
+
+  function stripHiddenEpics(nodes) {
+    var out = [];
+    (nodes || []).forEach(function(n) {
+      if (n.type === 'Epic' && isHiddenEpic(n.id)) return;
+      var copy = n;
+      if (n.children && n.children.length) {
+        var kids = stripHiddenEpics(n.children);
+        if (kids.length !== n.children.length) {
+          copy = {};
+          for (var k in n) copy[k] = n[k];
+          copy.children = kids;
+        }
+      }
+      out.push(copy);
+    });
+    return out;
+  }
+
+  var settingsTab = 'visibility';
+
+  window.switchSettingsTab = function(tab) {
+    settingsTab = tab;
+    document.getElementById('tabVisibility').style.display = tab === 'visibility' ? '' : 'none';
+    document.getElementById('tabOrder').style.display = tab === 'order' ? '' : 'none';
+    document.getElementById('tabBtnVisibility').className = 'tab-btn' + (tab === 'visibility' ? ' active' : '');
+    document.getElementById('tabBtnOrder').className = 'tab-btn' + (tab === 'order' ? ' active' : '');
+  };
+
+  window.openSettings = function() {
+    buildSettingsBody();
+    buildOrderBody();
+    switchSettingsTab(settingsTab);
+    document.getElementById('settingsOverlay').classList.add('open');
+  };
+
+  window.closeSettings = function() {
+    document.getElementById('settingsOverlay').classList.remove('open');
+  };
+
+  window.overlayClicked = function(e) {
+    if (e.target === document.getElementById('settingsOverlay')) closeSettings();
+  };
+
+  window.saveSettings = function() {
+    var ids = [];
+    var boxes = document.querySelectorAll('#tabVisibility input[type=checkbox]');
+    for (var i = 0; i < boxes.length; i++) {
+      if (boxes[i].checked) ids.push(parseInt(boxes[i].value, 10));
+    }
+    saveHiddenEpics(ids);
+    if (pendingOrder) saveOrder(flattenPendingOrder());
+    populateEpicFilter();
+    closeSettings();
+    updateSummary();
+    renderCurrentView();
+  };
+
+  window.resetSettings = function() {
+    saveHiddenEpics([]);
+    saveOrder([]);
+    populateEpicFilter();
+    var boxes = document.querySelectorAll('#tabVisibility input[type=checkbox]');
+    for (var i = 0; i < boxes.length; i++) boxes[i].checked = false;
+    syncSubEpicStates();
+    buildOrderBody();
+    updateSummary();
+    renderCurrentView();
+  };
+
+  function buildSettingsBody() {
+    var body = document.getElementById('tabVisibility');
+    body.innerHTML = '';
+    var hint = document.createElement('div');
+    hint.className = 'settings-hint';
+    hint.textContent = 'Uncheck an epic to hide it and its subtree from all views. Hiding a top-level epic also hides its sub-epics.';
+    body.appendChild(hint);
+
+    var hidden = getHiddenEpics();
+    (window.EPIC_TREE_DATA || []).forEach(function(epic) {
+      body.appendChild(settingsItem(epic, hidden, false));
+      (epic.children || []).forEach(function(child) {
+        if (child.type === 'Epic') body.appendChild(settingsItem(child, hidden, true));
+      });
+    });
+    syncSubEpicStates();
+  }
+
+  function settingsItem(epic, hidden, isSub) {
+    var label = document.createElement('label');
+    label.className = 'settings-item' + (isSub ? ' sub' : '');
+    label.setAttribute('data-epic-id', String(epic.id));
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = String(epic.id);
+    cb.checked = hidden.indexOf(epic.id) !== -1;
+    cb.setAttribute('data-top-level', isSub ? 'false' : 'true');
+    label.appendChild(cb);
+
+    var idEl = document.createElement('span');
+    idEl.className = 'wi-id';
+    idEl.textContent = '#' + epic.id;
+    label.appendChild(idEl);
+
+    var titleEl = document.createElement('span');
+    titleEl.className = 'wi-title';
+    titleEl.textContent = epic.title;
+    titleEl.title = epic.title;
+    label.appendChild(titleEl);
+
+    cb.onchange = syncSubEpicStates;
+    return label;
+  }
+
+  function syncSubEpicStates() {
+    var items = document.querySelectorAll('#tabVisibility .settings-item');
+    var hiddenTop = {};
+    for (var i = 0; i < items.length; i++) {
+      var cb = items[i].querySelector('input');
+      var isTop = cb.getAttribute('data-top-level') === 'true';
+      if (isTop && cb.checked) hiddenTop[items[i].getAttribute('data-epic-id')] = true;
+    }
+    for (var j = 0; j < items.length; j++) {
+      var box = items[j].querySelector('input');
+      if (box.getAttribute('data-top-level') === 'true') continue;
+      var parentHidden = false;
+      var el = items[j];
+      while (el && el.previousElementSibling) {
+        el = el.previousElementSibling;
+        var pbox = el.querySelector('input');
+        if (pbox && pbox.getAttribute('data-top-level') === 'true') {
+          parentHidden = pbox.checked;
+          break;
+        }
+      }
+      items[j].className = 'settings-item sub' + (parentHidden ? ' disabled' : '');
+    }
+  }
+
   function clearViewContent(container) {
     var nodes = container.querySelectorAll('.tree-node, .graph-canvas, #emptyState');
     for (var i = 0; i < nodes.length; i++) nodes[i].remove();
@@ -542,7 +1005,7 @@ window.EPIC_TREE_DATA = [];
       else if (t === 'bug') bugs++;
       (n.children || []).forEach(count);
     }
-    (window.EPIC_TREE_DATA || []).forEach(count);
+    (getFilteredData()).forEach(count);
     document.getElementById('epicCount').textContent = epics;
     document.getElementById('featureCount').textContent = features;
     document.getElementById('storyCount').textContent = stories;
@@ -569,11 +1032,13 @@ window.EPIC_TREE_DATA = [];
     }
 
     var visibleCount = 0;
-    (window.EPIC_TREE_DATA || []).forEach(function(epic) {
+    (getFilteredData()).forEach(function(epic) {
       if (!nodeMatches(epic)) return;
       visibleCount++;
       container.appendChild(createNodeElement(epic, 0, search));
     });
+    allExpanded = true;
+    updateExpandToggle();
 
     if (visibleCount === 0) {
       var msg = search ? 'No items match your filter.' : 'No data to display.';
@@ -644,6 +1109,7 @@ window.EPIC_TREE_DATA = [];
       countEl.className = 'child-count';
       var parts = [];
       var cs = node.childStats || {};
+      if (cs.epics > 0) parts.push(cs.epics + 'E');
       if (cs.features > 0) parts.push(cs.features + 'F');
       if (cs.stories > 0) parts.push(cs.stories + 'US');
       if (cs.bugs > 0) parts.push(cs.bugs + 'B');
@@ -692,25 +1158,29 @@ window.EPIC_TREE_DATA = [];
     }
   }
 
-  window.expandAll = function() {
-    var all = document.querySelectorAll('.children');
-    for (var i = 0; i < all.length; i++) {
-      all[i].classList.remove('collapsed');
-      all[i].classList.add('expanded');
-    }
-    var toggles = document.querySelectorAll('.toggle-icon:not(.leaf)');
-    for (var j = 0; j < toggles.length; j++) toggles[j].classList.add('expanded');
-  };
+  var allExpanded = true;
 
-  window.collapseAll = function() {
+  function setExpanded(expanded) {
+    allExpanded = expanded;
     var all = document.querySelectorAll('.children');
     for (var i = 0; i < all.length; i++) {
-      all[i].classList.remove('expanded');
-      all[i].classList.add('collapsed');
+      all[i].classList.remove(expanded ? 'collapsed' : 'expanded');
+      all[i].classList.add(expanded ? 'expanded' : 'collapsed');
     }
     var toggles = document.querySelectorAll('.toggle-icon:not(.leaf)');
-    for (var j = 0; j < toggles.length; j++) toggles[j].classList.remove('expanded');
-  };
+    for (var j = 0; j < toggles.length; j++) {
+      if (expanded) toggles[j].classList.add('expanded');
+      else toggles[j].classList.remove('expanded');
+    }
+    updateExpandToggle();
+  }
+
+  function updateExpandToggle() {
+    var btn = document.getElementById('expandToggle');
+    if (btn) btn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
+  }
+
+  window.toggleExpand = function() { setExpanded(!allExpanded); };
 
   // ── Graph view ───────────────────────────────────────────
 
@@ -767,7 +1237,7 @@ window.EPIC_TREE_DATA = [];
       });
     }
 
-    flatten(window.EPIC_TREE_DATA || [], null, 0, '');
+    flatten(getFilteredData(), null, 0, '');
 
     console.log('[renderGraph] allNodes:', allNodes.length, 'edges:', edges.length);
 
@@ -819,6 +1289,7 @@ window.EPIC_TREE_DATA = [];
     svg.setAttribute('height', maxColHeight + 20);
 
     var EDGE_CLASS = {
+      'epic_epic': 'edge-epic-epic',
       'epic_feature': 'edge-epic-feature',
       'epic_user-story': 'edge-epic-leaf',
       'epic_bug': 'edge-epic-leaf',
@@ -864,13 +1335,19 @@ window.EPIC_TREE_DATA = [];
 
     canvas.appendChild(svg);
 
-    // Column headers
-    var colLabels = ['Epics', 'Features', 'Stories / Bugs'];
+    // Column headers — derived from the types actually present at each level,
+    // since nested Epics mean a level can hold Epics, Features, or both
     columns.forEach(function(col, levelIndex) {
+      var types = {};
+      col.forEach(function(n) { types[n.typeKey] = true; });
+      var names = [];
+      if (types['epic']) names.push('Epics');
+      if (types['feature']) names.push('Features');
+      if (types['user-story'] || types['bug']) names.push('Stories / Bugs');
       var header = document.createElement('div');
       header.className = 'graph-col-header';
       header.style.cssText = 'position:absolute;left:' + (PAD_LEFT + levelIndex * colWidth) + 'px;top:0;width:' + (colWidth - 8) + 'px;';
-      header.textContent = levelIndex < colLabels.length ? colLabels[levelIndex] : '...';
+      header.textContent = names.join(' / ') || '...';
       canvas.appendChild(header);
 
       col.forEach(function(node) {
@@ -978,6 +1455,7 @@ window.EPIC_TREE_DATA = [];
         document.getElementById('toolbar').style.display = 'flex';
         document.getElementById('summary').style.display = 'flex';
         document.getElementById('legend').style.display = 'flex';
+        populateEpicFilter();
         if (!document.getElementById('viewToggle').querySelector('.active')) {
           setupViewToggle();
         }
