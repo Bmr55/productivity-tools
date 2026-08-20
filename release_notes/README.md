@@ -61,6 +61,22 @@ $env:GITLAB_PRIVATE_TOKEN = "glpat-xxx"
 
 Environment variables override `.env` values. The clients auto-detect credentials. With live ADO credentials, `get_release_by_id` fetches the release work item, its Test Task children (via a WIQL query on `System.Parent`), their linked User Stories and Bugs, and the parent Feature/Epic hierarchy from the Azure DevOps REST API (`api-version=7.0`). It assumes Test Tasks are children of the release work item. The GitLab REST client is currently a stub, so configured live mode reports that it is not yet implemented instead of falling back to mock data.
 
+## Epic Tree Export
+
+Exports the open Epic/Feature/User Story/Bug hierarchy (including epics nested under other epics) to JSON plus a self-contained interactive HTML page:
+
+```bash
+python release_notes/epic_tree_export.py          # live ADO (reads .env)
+python release_notes/epic_tree_export.py --mock   # bundled demo data
+```
+
+Outputs `exports/epic_tree.json` and `exports/epic_tree.html` (open directly — the page also accepts drag/dropped JSON). Features:
+
+- **Tree view** — collapsible hierarchy with expand/collapse toggle
+- **Graph view** — column layout (Epics / Features / Stories & Bugs) with ADO Agile default type colors
+- **Epic filter dropdown** — view a single top-level epic or all
+- **Settings panel** (persisted to `localStorage`) — Visibility tab to hide level-1/2 epics, Order tab to reorder epics with arrow controls; Save/Reset/Close
+
 ## Project Structure
 
 ```
@@ -70,6 +86,8 @@ release_notes/
   generator.py          # Orchestrator — fetches ADO release, selects formatter
   ado_client.py         # Azure DevOps API client (mocked when no credentials)
   gitlab_client.py      # GitLab API client (mocked when no credentials)
+  epic_tree_export.py   # Epic/Feature/Story/Bug tree export to JSON + HTML
+  epic_tree.html        # Template for the interactive epic tree page
   models.py             # Data models (Release, TestTask, WorkItem, GitLabIssue, GitLabMergeRequest)
   mock_data.py          # Sample release with 3 test tasks and 6 linked work items
   .env.example          # Template for API credentials
@@ -83,12 +101,12 @@ release_notes/
 
 ```
 ADO Hierarchy (parent links)
-  Epic ──→ Feature ──→ WorkItem (User Story / Bug)
+  Epic ──→ Epic (optional nesting) ──→ Feature ──→ WorkItem (User Story / Bug)
 
 Release Structure (test validation)
   Release ──→ TestTask ──→ WorkItem (same as above)
-                              ├── GitLabIssue
-                              └── GitLabMergeRequest
+                               ├── GitLabIssue
+                               └── GitLabMergeRequest
 ```
 
 ## Work Item Fields
@@ -106,14 +124,23 @@ Release Structure (test validation)
 | Area Path | Product area classification |
 | Iteration Path | Sprint/iteration |
 | Tags | ADO tags |
-| RTC Item | Custom ADO field — Rational Team Concert reference |
+| RTC Item | Rational Team Concert reference — maps to `Custom.RTCWI` in the connected ADO project |
 | Feature | Parent ADO Feature (ParentWorkItem with id, title, type, state, url) |
 | Epic | Grandparent ADO Epic (ParentWorkItem with id, title, type, state, url) |
 | Custom Fields | Arbitrary `name: value` fields from ADO |
 
 ## Custom ADO Fields
 
-Custom fields (e.g. `RTC Item`) are stored in the `custom_fields` dict on each `WorkItem` model, with a convenience property `rtc_item` for direct access. All formatters render custom fields automatically.
+Custom fields (`Custom.*` in ADO) are stored in the `custom_fields` dict on each `WorkItem` model, and all formatters render them automatically. The connected ADO project defines these custom fields:
+
+| ADO Field | Surfaced As |
+|---|---|
+| `Custom.RTCWI` | `RTC Item` (canonical alias) and `RTCWI` |
+| `Custom.ConfigurationRelease` | `ConfigurationRelease` |
+| `Custom.FixedRelease` | `FixedRelease` |
+| `Custom.PullIn` | `PullIn` |
+
+The `rtc_item` convenience property on `WorkItem` returns the value of the first custom field containing "RTC" (`Custom.RTCWI`), falling back to an empty string when absent.
 
 ## Parent Feature & Epic Linking
 
